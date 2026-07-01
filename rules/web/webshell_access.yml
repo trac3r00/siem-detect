@@ -1,0 +1,31 @@
+title: Web Shell Upload Or Access
+id: 1a1b0c10-0012-4a10-9b03-web-webshell
+status: experimental
+description: >
+  Detects requests to common web-shell filenames and suspicious script uploads
+  in the request URI (c99, r57, generic cmd/eval shells).
+references:
+  - https://attack.mitre.org/techniques/T1505/003/
+author: trac3r00
+date: 2026/07/01
+tags:
+  - attack.persistence
+  - attack.t1505.003
+logsource:
+  category: webserver
+detection:
+  selection:
+    uri|contains:
+      - "c99.php"
+      - "r57.php"
+      - "shell.php"
+      - "cmd.php"
+      - "wso.php"
+      - "b374k"
+      - "/eval-stdin.php"
+      - "?cmd="
+      - "?exec="
+  condition: selection
+falsepositives:
+  - Files legitimately named 'shell' in a dev environment
+level: critical

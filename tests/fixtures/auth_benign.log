@@ -1,0 +1,5 @@
+Jul  1 08:00:01 web01 sshd[1200]: Accepted publickey for bob from 10.0.2.15 port 40122 ssh2
+Jul  1 08:05:33 web01 sshd[1240]: Accepted password for alice from 192.168.1.20 port 40200 ssh2
+Jul  1 08:10:00 web01 cron[900]: (root) CMD (/usr/bin/backup.sh)
+Jul  1 08:12:11 web01 systemd[1]: Started Session 12 of user bob.
+Jul  1 08:30:02 web01 sudo[1301]:      alice : TTY=pts/1 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/apt update

@@ -1,0 +1,4 @@
+{"eventSource": "signin.amazonaws.com", "eventName": "ConsoleLogin", "userIdentity": {"type": "Root", "arn": "arn:aws:iam::111122223333:root"}, "sourceIPAddress": "203.0.113.9"}
+{"eventSource": "cloudtrail.amazonaws.com", "eventName": "StopLogging", "userIdentity": {"type": "IAMUser", "userName": "svc-deploy"}, "requestParameters": {"name": "org-trail"}}
+{"eventSource": "iam.amazonaws.com", "eventName": "CreateAccessKey", "userIdentity": {"type": "IAMUser", "userName": "svc-deploy"}, "requestParameters": {"userName": "backdoor"}}
+{"eventSource": "s3.amazonaws.com", "eventName": "GetObject", "userIdentity": {"type": "IAMUser", "userName": "analyst"}, "sourceIPAddress": "10.0.0.5"}

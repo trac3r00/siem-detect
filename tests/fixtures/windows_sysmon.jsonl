@@ -1,0 +1,4 @@
+{"Event": {"System": {"EventID": {"#text": "1"}, "Channel": "Microsoft-Windows-Sysmon/Operational", "Computer": "WIN-DC01"}, "EventData": {"Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "CommandLine": "powershell.exe -nop -w hidden -enc SQBFAFgAKA=="}}}
+{"Event": {"System": {"EventID": {"#text": "1"}, "Channel": "Microsoft-Windows-Sysmon/Operational", "Computer": "WIN-DC01"}, "EventData": {"Image": "C:\\Windows\\System32\\cmd.exe", "CommandLine": "cmd.exe /c rundll32.exe C:\\windows\\comsvcs.dll, MiniDump 640 C:\\temp\\lsass.dmp full"}}}
+{"Event": {"System": {"EventID": {"#text": "4728"}, "Channel": "Security", "Computer": "WIN-DC01"}, "EventData": {"TargetUserName": "attacker", "TargetSid": "S-1-5-32-544", "GroupName": "Administrators"}}}
+{"Event": {"System": {"EventID": {"#text": "4624"}, "Channel": "Security", "Computer": "WIN-DC01"}, "EventData": {"TargetUserName": "bob", "LogonType": "2"}}}

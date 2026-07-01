@@ -1,0 +1,24 @@
+title: SSH Login Attempt With Invalid / Non-Existent User
+id: 1a1b0c10-0002-4a10-9a02-ssh-invalid-user
+status: experimental
+description: >
+  Detects SSH authentication attempts for accounts that do not exist on the
+  host. Automated scanners spray common usernames (admin, oracle, test, git).
+references:
+  - https://attack.mitre.org/techniques/T1110/001/
+author: trac3r00
+date: 2026/07/01
+tags:
+  - attack.credential_access
+  - attack.t1110.001
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection:
+    program: sshd
+    invalid_user: true
+  condition: selection
+falsepositives:
+  - Users connecting with a mistyped username
+level: medium

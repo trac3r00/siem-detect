@@ -1,0 +1,33 @@
+title: Sudo To Root Or Privilege Escalation Binary
+id: 1a1b0c10-0004-4a10-9a04-linux-sudo-root
+status: experimental
+description: >
+  Detects sudo execution escalating directly to a root shell or invoking a
+  known GTFOBins escalation binary. Useful for spotting hands-on-keyboard
+  privilege escalation.
+references:
+  - https://attack.mitre.org/techniques/T1548/003/
+author: trac3r00
+date: 2026/07/01
+tags:
+  - attack.privilege_escalation
+  - attack.t1548.003
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection_sudo:
+    program: sudo
+  selection_cmd:
+    message|contains:
+      - "COMMAND=/bin/bash"
+      - "COMMAND=/bin/sh"
+      - "COMMAND=/usr/bin/python"
+      - "COMMAND=/usr/bin/perl"
+      - "COMMAND=/usr/bin/find"
+      - "COMMAND=/usr/bin/vim"
+      - "COMMAND=/usr/bin/env"
+  condition: selection_sudo and selection_cmd
+falsepositives:
+  - Administrators legitimately opening a root shell
+level: medium

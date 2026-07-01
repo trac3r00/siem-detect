@@ -1,0 +1,40 @@
+title: Windows Suspicious PowerShell Encoded / Download Command
+id: 1a1b0c10-0020-4a10-9c01-win-ps-enc
+status: experimental
+description: >
+  Detects PowerShell process creation (Sysmon EventID 1 / Security 4688) using
+  encoded commands, hidden windows, execution-policy bypass, or in-memory
+  download cradles - hallmarks of fileless execution.
+references:
+  - https://attack.mitre.org/techniques/T1059/001/
+author: trac3r00
+date: 2026/07/01
+tags:
+  - attack.execution
+  - attack.t1059.001
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection_img:
+    Image|endswith:
+      - "\\powershell.exe"
+      - "\\pwsh.exe"
+  selection_flags:
+    CommandLine|contains:
+      - " -enc "
+      - " -encodedcommand"
+      - " -e "
+      - "-nop"
+      - "-noni"
+      - "-w hidden"
+      - "-windowstyle hidden"
+      - "downloadstring"
+      - "downloadfile"
+      - "iex("
+      - "invoke-expression"
+      - "frombase64string"
+  condition: selection_img and selection_flags
+falsepositives:
+  - Administrative automation scripts that legitimately encode commands
+level: high

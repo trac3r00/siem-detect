@@ -1,0 +1,27 @@
+title: AWS CloudTrail - CloudTrail Logging Disabled Or Deleted
+id: 1a1b0c10-0030-4a10-9d01-aws-ct-stop
+status: experimental
+description: >
+  Detects an attacker disabling or deleting CloudTrail logging to evade
+  detection (StopLogging / DeleteTrail / UpdateTrail).
+references:
+  - https://attack.mitre.org/techniques/T1562/008/
+author: trac3r00
+date: 2026/07/01
+tags:
+  - attack.defense_evasion
+  - attack.t1562.008
+logsource:
+  product: aws
+  service: cloudtrail
+detection:
+  selection:
+    eventSource: cloudtrail.amazonaws.com
+    eventName:
+      - StopLogging
+      - DeleteTrail
+      - UpdateTrail
+  condition: selection
+falsepositives:
+  - Planned decommissioning of a trail by cloud engineers
+level: high
