@@ -149,9 +149,9 @@ pytest -q          # 30 tests: engine, parsers, end-to-end
 Every push, PR, and a weekly cron run the **[OSV-Scanner](https://github.com/google/osv-scanner)**
 gate ([`.github/workflows/security.yml`](.github/workflows/security.yml)): the
 resolved dependency tree is frozen to a lockfile and checked against the
-[OSV.dev](https://osv.dev) vulnerability database. Findings are uploaded as
-SARIF to the repo's **Security** tab, and the build fails if a dependency ships
-a known CVE — so a newly-disclosed advisory surfaces even without a code change.
+[OSV.dev](https://osv.dev) vulnerability database. The build fails if a
+dependency ships a known CVE — so a newly-disclosed advisory surfaces even
+without a code change.
 
 ## License
 

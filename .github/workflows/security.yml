@@ -4,8 +4,10 @@ name: security
 # vulnerability in the OSV.dev database. Runs on every push/PR and weekly,
 # so newly-disclosed CVEs against pinned deps surface even without a code change.
 #
-# All scan-args below are static literals — no untrusted event input is
-# interpolated into any run: step, so this workflow is not injectable.
+# We install the OSV-Scanner binary directly (rather than the marketplace
+# action) so the pipeline has no external action-version coupling. All commands
+# use static literals — no untrusted event input is interpolated, so this
+# workflow is not injectable.
 
 on:
   push:
@@ -16,7 +18,9 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # upload SARIF to the Security tab
+
+env:
+  OSV_VERSION: v2.4.0
 
 jobs:
   osv-scan:
@@ -38,24 +42,11 @@ jobs:
           echo "----- resolved dependency lock -----"
           cat requirements.lock.txt
 
-      - name: Run OSV-Scanner (SARIF, non-blocking upload)
-        uses: google/osv-scanner-action@v2.3.8
-        continue-on-error: true  # keep going so SARIF still uploads
-        with:
-          scan-args: |-
-            --lockfile=requirements.lock.txt
-            --format=sarif
-            --output=osv-results.sarif
+      - name: Install OSV-Scanner
+        run: |
+          curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+          osv-scanner --version
 
-      - name: Upload SARIF to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: osv-results.sarif
-
-      # Human-readable table + hard gate: this step fails the build on vulns.
       - name: Run OSV-Scanner (gate)
-        uses: google/osv-scanner-action@v2.3.8
-        with:
-          scan-args: |-
-            --lockfile=requirements.lock.txt
+        run: osv-scanner scan source --lockfile=requirements.lock.txt
