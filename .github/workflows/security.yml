@@ -1,0 +1,61 @@
+name: security
+
+# Supply-chain (SCA) gate: fail the build if a dependency has a known
+# vulnerability in the OSV.dev database. Runs on every push/PR and weekly,
+# so newly-disclosed CVEs against pinned deps surface even without a code change.
+#
+# All scan-args below are static literals — no untrusted event input is
+# interpolated into any run: step, so this workflow is not injectable.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # Mondays 06:00 UTC
+
+permissions:
+  contents: read
+  security-events: write  # upload SARIF to the Security tab
+
+jobs:
+  osv-scan:
+    name: OSV dependency scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pyproject declares version ranges; OSV needs concrete resolved
+      # versions, so freeze the installed tree into a lockfile first.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Freeze resolved dependencies to a lockfile
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip freeze > requirements.lock.txt
+          echo "----- resolved dependency lock -----"
+          cat requirements.lock.txt
+
+      - name: Run OSV-Scanner (SARIF, non-blocking upload)
+        uses: google/osv-scanner-action@v2.3.8
+        continue-on-error: true  # keep going so SARIF still uploads
+        with:
+          scan-args: |-
+            --lockfile=requirements.lock.txt
+            --format=sarif
+            --output=osv-results.sarif
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: osv-results.sarif
+
+      # Human-readable table + hard gate: this step fails the build on vulns.
+      - name: Run OSV-Scanner (gate)
+        uses: google/osv-scanner-action@v2.3.8
+        with:
+          scan-args: |-
+            --lockfile=requirements.lock.txt
