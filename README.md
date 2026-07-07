@@ -1,5 +1,12 @@
 # siem-detect
 
+[![tests](https://github.com/trac3r00/siem-detect/actions/workflows/tests.yml/badge.svg)](https://github.com/trac3r00/siem-detect/actions/workflows/tests.yml)
+[![security](https://github.com/trac3r00/siem-detect/actions/workflows/security.yml/badge.svg)](https://github.com/trac3r00/siem-detect/actions/workflows/security.yml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![MITRE ATT&CK](https://img.shields.io/badge/MITRE%20ATT%26CK-mapped-red.svg)](https://attack.mitre.org/)
+[![Sigma](https://img.shields.io/badge/Sigma-detection%20engine-orange.svg)](https://sigmahq.io/)
+
 A small, dependency-light **Sigma detection engine** for logs — for SOC
 analysts and detection engineers who want to *run* Sigma rules directly against
 log data without standing up a full SIEM.
@@ -32,23 +39,26 @@ or a triage notebook.
 
 ## Architecture
 
-```
-              ┌───────────────────────────────┐
-   log file ─►│ logsource.py — parsers        │──► events[] + {product,service}
-   (any of    │  jsonl · json · syslog ·      │
-   5 formats) │  auth · nginx · evtx-json     │
-              └───────────────┬───────────────┘
-                              │
-              ┌───────────────▼───────────────┐
-   Sigma  ───►│ sigma.py — rule model +       │
-   rules      │  field matchers + condition   │
-   (YAML)     │  evaluator (AND/OR/NOT/1 of)  │
-              └───────────────┬───────────────┘
-                              │
-              ┌───────────────▼───────────────┐
-              │ engine.py — scan + Report     │──► markdown / JSON / JSONL
-              │  verdict + MITRE ATT&CK roll-up│    + CI exit code
-              └───────────────────────────────┘
+```mermaid
+flowchart TD
+    LOG["Log file<br/>jsonl · json · syslog<br/>auth · nginx · evtx-json"]
+    RULES["Sigma rules<br/>(YAML)"]
+
+    subgraph parse["logsource.py"]
+        P["Format parsers<br/>+ logsource auto-detection"]
+    end
+    subgraph match["sigma.py"]
+        M["Rule model · field matchers<br/>condition evaluator<br/>AND / OR / NOT / 1 of / all of"]
+    end
+    subgraph report["engine.py"]
+        E["Scan + Report<br/>verdict · MITRE ATT&CK roll-up"]
+    end
+
+    LOG --> P
+    P -->|"events[] + {product, service}"| M
+    RULES --> M
+    M -->|matches| E
+    E --> OUT["markdown / JSON / JSONL<br/>+ CI exit code"]
 ```
 
 ## Quickstart
