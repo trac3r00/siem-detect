@@ -1,45 +1,44 @@
 # Detection rules
 
-Sigma rules bundled with `siem-detect`, organised by platform. Each rule is a
-standard [Sigma](https://sigmahq.io/docs) YAML file and is executed directly by
-the engine (no backend conversion).
+This directory contains the 14 Sigma YAML rules bundled with `siem-detect`. The CLI loads these rules by default when it is run from an editable source installation.
 
-```
+```text
 rules/
-├── linux/    SSH brute force, invalid user, reverse shell, sudo escalation
-├── web/      SQLi, path traversal, web shell, HTTP auth brute force
-├── windows/  encoded PowerShell, LSASS dump, privileged group add
-└── cloud/    AWS CloudTrail disabled, root console login, IAM key created
+├── cloud/    AWS CloudTrail, root console, and IAM access key events
+├── linux/    SSH, reverse-shell command, and sudo events
+├── web/      SQL injection, path traversal, web shell, and authentication events
+└── windows/  PowerShell, LSASS access, and privileged group events
 ```
 
-## Writing your own
+All bundled rules currently declare `status: experimental`. Review their field names, severity, false-positive guidance, and match conditions before using them with production data.
 
-Drop any `*.yml` Sigma rule into a directory and point the CLI at it:
+The engine evaluates one event at a time. Rules with names such as “brute force” or “high rate” identify individual events associated with that activity; the engine does not aggregate counts over a time window.
+
+## Use custom rules
+
+Pass either one YAML file or a directory. Directories are searched recursively for `*.yml` and `*.yaml` files.
 
 ```bash
-siem-detect app.log -r ./my-rules
+siem-detect app.log --rules ./my-rules
 ```
 
-Minimum viable rule:
+A minimal supported rule is:
 
 ```yaml
-title: My Detection
-id: unique-id
+title: Example detection
+id: example-detection
 level: high
 tags:
   - attack.execution
   - attack.t1059
 logsource:
-  product: linux          # optional; scopes which logs the rule runs on
+  product: linux
 detection:
   selection:
-    message|contains: "something bad"
+    message|contains: "example command"
   condition: selection
 ```
 
-The `logsource` block is matched against the parser's descriptor
-(`product` / `service` / `category`). Leave it empty to run the rule against
-every event regardless of source.
+The `logsource` mapping is optional. When the parser identifies an input source, the engine compares the rule's `category`, `product`, and `service` values with that descriptor. A rule without these constraints can be evaluated against any source.
 
-See [`../docs/engine-walkthrough.md`](../docs/engine-walkthrough.md) for the full
-list of supported field modifiers and condition operators.
+Only a subset of Sigma syntax is supported. Unsupported rule documents without a `detection` block, including correlation-only documents, are skipped. Malformed rules and unsupported selection shapes stop rule loading with an error. See the [engine walkthrough](../docs/engine-walkthrough.md) and [Sigma support](../README.md#sigma-support) for the implemented behavior.
