@@ -1,9 +1,10 @@
-# The engine: how a Sigma rule becomes a match
+# Engine walkthrough
 
-This walkthrough traces one rule through the engine so the matching semantics
-are concrete. Source: [`src/siem_detect/sigma.py`](../src/siem_detect/sigma.py).
+This document traces a bundled rule through parsing, logsource filtering, matching, and reporting. The relevant implementation is in [`logsource.py`](../src/siem_detect/logsource.py), [`sigma.py`](../src/siem_detect/sigma.py), and [`engine.py`](../src/siem_detect/engine.py).
 
-## The rule
+## Example rule
+
+The shortened rule below detects an individual failed SSH password event from an address outside the listed networks:
 
 ```yaml
 title: SSH Brute Force - Repeated Failed Password From External IP
@@ -27,67 +28,63 @@ tags:
 level: medium
 ```
 
-## Step 1 — logsource targeting
+The engine evaluates each event independently. It does not count repeated failures or apply a time window.
 
-`auth.log` parses to `{"product": "linux", "service": "auth"}`. Before scanning,
-`Engine.scan()` drops every rule whose `logsource` is incompatible, so this rule
-is active but the Windows/AWS rules are not. Empty rule constraints match
-anything.
+## 1. Parse and identify the source
 
-## Step 2 — selections compile to matchers
+For an authentication log, `parse_log()` returns normalized events and the descriptor `{"product": "linux", "service": "auth"}`. The authentication parser extracts fields such as `program`, `user`, `src_ip`, and `outcome` from recognized `sshd` messages.
 
-Each selection becomes a `Selection` object:
+When the input format is `auto`, the parser examines up to the first 50 lines. An explicit `--format auth` selection bypasses format detection.
 
-- `selection` is a **dict** → implicit **AND**: `program == "sshd"` **and**
-  `outcome == "failure"`.
-- `filter_internal` has one field with a **list** value and the `|cidr`
-  modifier → `src_ip` is in **any** (OR) of the four networks.
+## 2. Filter rules by logsource
 
-The `program: sshd` pair compiles to a `FieldMatcher`. Because the value has no
-`|modifier` and no `*`, it's an exact (case-insensitive) compare. `src_ip|cidr`
-compiles the four strings into `ipaddress.ip_network` objects; matching parses
-the event's `src_ip` and tests membership.
+Before scanning events, `Engine.scan()` compares each rule's `category`, `product`, and `service` constraints with the parser descriptor. The example rule remains active for authentication logs, while incompatible Windows and web server rules are excluded.
 
-## Step 3 — the condition evaluator
+No compatibility filter is applied when the parsed source has no descriptor, as is the case for generic `json` and `jsonl` inputs. The `--no-logsource-filter` option also disables this step.
 
-`selection and not filter_internal` is tokenized and evaluated by a
-recursive-descent parser (`ConditionEvaluator`) with the precedence
-`or < and < not < atom`. For each event it resolves the named selections to
-booleans and combines them. Parentheses and `1 of x*` / `all of x*` are handled
-in `_parse_atom` / `_quantifier`.
+## 3. Compile selections
 
-Given the event:
+Each named detection block becomes a `Selection`:
 
-```
-{"program": "sshd", "outcome": "failure", "src_ip": "203.0.113.9", ...}
+- `selection` is a mapping, so its fields use implicit AND: `program` must equal `sshd` and `outcome` must equal `failure`.
+- `filter_internal` contains a list for `src_ip|cidr`, so the address may match any listed network.
+
+Plain string comparisons are case-insensitive unless the `cased` modifier is present. Plain values containing `*` or `?` use wildcard matching.
+
+## 4. Evaluate the condition
+
+`ConditionEvaluator` parses `selection and not filter_internal` with the precedence `or < and < not < atom`. For this event:
+
+```json
+{"program": "sshd", "outcome": "failure", "src_ip": "203.0.113.9"}
 ```
 
-- `selection` → True (sshd + failure)
-- `filter_internal` → False (203.0.113.9 is not RFC1918)
-- `selection and not filter_internal` → **True** → detection fires.
+- `selection` is true.
+- `filter_internal` is false because `203.0.113.9` is outside the listed networks.
+- `selection and not filter_internal` is true, so the rule produces a detection.
 
-An internal source (`10.1.2.3`) makes `filter_internal` True, so the rule
-correctly stays silent.
+An event with `src_ip` set to `10.1.2.3` matches `filter_internal`, making the complete condition false.
 
-## Step 4 — MITRE roll-up
+The condition evaluator also supports parentheses, `1 of pattern*`, `all of pattern*`, `1 of them`, and `all of them`.
 
-`rule.mitre_techniques` regexes the `attack.tNNNN[.NNN]` tags into
-`["T1110.001"]`; `mitre_tactics` maps the tactic tags. The `Report` aggregates
-these across all detections into the histogram shown in the summary.
+## 5. Build the report
 
-## Field modifiers reference
+Each detection contains the rule identity, severity, matching event, source rule path, tags, and MITRE ATT&CK metadata. `Report` calculates severity and technique counts and serializes the result as Markdown or JSON. JSON Lines output serializes each detection individually.
 
-| Modifier          | Meaning                                             |
-|-------------------|-----------------------------------------------------|
-| `contains`        | substring match                                     |
-| `contains|all`    | **every** listed value must be a substring          |
-| `startswith` / `endswith` | prefix / suffix match                       |
-| `re`              | Python regex (`re|i` adds ignore-case)              |
-| `cidr`            | IP-in-network membership                            |
-| `base64` / `base64offset` | encode the expected value before matching   |
-| `windash`         | dash-variant permutations (`-`, `/`, en/em dashes)  |
-| `lt/lte/gt/gte`   | numeric comparison                                  |
-| `cased`           | force case-sensitive matching                       |
-| `exists`          | field presence test (`true`/`false`)                |
+## Supported field modifiers
 
-Wildcards `*` and `?` inside a plain value are treated as globs.
+| Modifier | Behavior |
+| --- | --- |
+| `contains` | Substring match |
+| `contains|all` | Every listed value must be present as a substring |
+| `startswith`, `endswith` | Prefix or suffix match |
+| `re` | Python regular expression search; add `i` for case-insensitive matching |
+| `cidr` | IP address membership in one or more networks |
+| `base64` | Match the Base64 encoding of the expected value |
+| `base64offset` | Match generated Base64 offset variants of the expected value |
+| `windash` | Match supported dash and slash variants |
+| `lt`, `lte`, `gt`, `gte` | Numeric comparison |
+| `cased` | Use case-sensitive string matching |
+| `exists` | Test whether a field is present |
+
+Dotted field names such as `userIdentity.type` traverse nested mappings. List-valued event fields match when any element satisfies the field matcher.

@@ -1,45 +1,63 @@
-# Release & Merge Policy — siem-detect
+# Release and merge policy
 
-이 문서는 언제 PR을 merge하고, 언제 릴리스를 자르고, hotfix가 어떻게 흐르는지 정의한다.
-"CI green"은 필요조건이지 충분조건이 아니다.
+This document defines the merge and release requirements for `siem-detect`. A green CI run is required, but it is not sufficient by itself.
 
-## 필수 merge 게이트 (Required merge gates)
+## Merge requirements
 
-PR은 다음이 **모두** 성립할 때만 merge:
+A pull request may be merged only when all of the following conditions are met:
 
-1. **최신 커밋에서 CI green** (이전 커밋 아님).
-2. **PR 본문 완비** — 연결 이슈, Why 섹션, 검증 증거. Why 비면 CI 무관하게 merge 불가.
-3. **검증 증거.** 가장 작은 관련 명령 출력 또는 CI 증거. UI/route 변경은 수동 검증도.
-4. **PR 하나 = 논리적 변경 하나.** 기능+무관 리팩터 섞이면 쪼갠다.
-5. **배치 soak 규칙** (배포 자동화 repo): 배포 유발 PR은 15분에 하나만. docs/CI-only는 자유.
+1. Required CI checks pass on the current commit.
+2. The pull request explains the motivation, scope, and relevant issue or context.
+3. Verification evidence is included. Use the smallest relevant test command and add a manual CLI check when behavior changes.
+4. The pull request contains one logical change. Unrelated features, fixes, and refactors should be separated.
+5. Security failures are resolved rather than waived.
 
-## main 직접 push
+Direct pushes to `main` are not allowed. An emergency repair for a broken `main` branch is the only exception and requires a follow-up incident review within 24 hours.
 
-허용 안 됨 (owner·자동화 포함). broken-main 긴급 상황만 예외 — 24h 내 회고 이슈.
+## Versioning
 
-## 릴리스 정책 (Release policy)
+The project follows [Semantic Versioning](https://semver.org/):
 
-- **언제 tag:** 의미 있는 사용자 대면 마일스톤(새 기능, 큰 UX 변화, 보안 수정) 후, 또는 최대 ~2주 누적. 순수 의존성 churn은 릴리스 사유 아님.
-- **버전 (SemVer):** breaking = major, 새 기능 = minor, 수정/deps = patch. **같은 주 minor 남발 = version inflation.**
-- **changelog:** tag 전 갱신. 사용자 관점으로 — 버전/날짜 헤드라인, Features/Fixes/Dependencies/Docs 그룹.
-- **release notes:** merge된 PR 제목 + changelog에서 생성. 각 줄에 PR 링크.
-- **tags:** pre-tag 체크 통과한 정확한 SHA에 `vX.Y.Z`.
-- **pre-tag 체크:** `pytest` — 정확한 tag SHA에서 로컬 또는 CI.
+- **Patch**: backward-compatible bug fixes and dependency maintenance.
+- **Minor**: backward-compatible user-facing features.
+- **Major**: incompatible public API or behavior changes.
 
-### 릴리스 vs 머지-only
+Conventional Commit prefixes communicate release impact: `fix:` normally indicates a patch, `feat:` a minor release, and `!` or a `BREAKING CHANGE` footer a major release.
 
-- **릴리스 관리 repo** (tag/release 있음): merge 후 PR 쌓아서 릴리스로 끊는다. main 방류 ❌. → `release-train` 패턴.
-- **릴리스 안 하는 repo** (tag 0): merge만.
-- **핫픽스(보안/버그):** 즉시 merge, 필요시 patch 릴리스.
+Documentation-only changes do not require a version bump unless they accompany a release or correct published package behavior.
 
-## Hotfix flow
+## Release checklist
 
-1. `hotfix/<slug>` 브랜치 (main에서).
-2. PR + 템플릿 (Why = 인시던트 설명 + 증거).
-3. 단독 merge (배치 ❌), 배포 완료까지 확인.
-4. 배포 실패 시 revert 먼저, 진단 나중.
+The repository currently has no automated publishing workflow. Before creating a release manually:
+
+1. Confirm that test and security workflows pass on the exact target commit.
+2. Confirm that the version in `pyproject.toml` and `src/siem_detect/__init__.py` is identical and reflects the intended release.
+3. Run the test suite:
+
+   ```bash
+   python -m pip install -e ".[dev]"
+   pytest -q
+   ```
+
+4. Smoke-test the installed CLI:
+
+   ```bash
+   siem-detect tests/fixtures/nginx_attack.log --output json
+   ```
+
+5. Verify the intended distribution artifact and its bundled-rule behavior before publication.
+6. Prepare release notes that summarize user-visible features, fixes, dependency changes, and documentation updates.
+7. Tag the verified commit as `vX.Y.Z`.
+
+Do not create a release solely for dependency churn. Group compatible changes into a coherent release when practical.
+
+## Hotfixes
+
+1. Create a `hotfix/<short-description>` branch from `main`.
+2. Open a focused pull request with the incident context and verification evidence.
+3. Merge only after required checks pass on the current commit.
+4. Create a patch release when users need the correction in a published artifact.
 
 ## Rollback
 
-- 우선: PR 통한 `git revert` (히스토리 보존, CI/배포 재실행).
-- 앵커: 릴리스 tag = known-good. `gh release list`로 마지막 확인.
+Use `git revert` through a pull request so history is preserved and CI runs against the rollback. When releases exist, use the most recent verified tag as the known-good reference.
