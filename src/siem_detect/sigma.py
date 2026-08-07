@@ -24,7 +24,7 @@ import ipaddress
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 try:
     import yaml

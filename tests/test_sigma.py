@@ -1,7 +1,7 @@
 """Unit tests for the Sigma matching engine (field modifiers + conditions)."""
 import pytest
 
-from siem_detect.sigma import _build_rule, SigmaParseError, ConditionEvaluator
+from siem_detect.sigma import _build_rule, SigmaParseError
 
 
 def rule(detection, **meta):
