@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, pve-ci]
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
