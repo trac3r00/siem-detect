@@ -25,7 +25,7 @@ env:
 jobs:
   osv-scan:
     name: OSV dependency scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, pve-ci]
     steps:
       - uses: actions/checkout@v4
 
