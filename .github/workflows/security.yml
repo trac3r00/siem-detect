@@ -44,9 +44,13 @@ jobs:
 
       - name: Install OSV-Scanner
         run: |
-          curl -sSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" -o /usr/local/bin/osv-scanner
-          chmod +x /usr/local/bin/osv-scanner
-          osv-scanner --version
+          install_dir="$(mktemp -d "${RUNNER_TEMP}/osv-scanner.XXXXXX")"
+          curl -fsSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" -o "${install_dir}/osv-scanner"
+          chmod +x "${install_dir}/osv-scanner"
+          echo "${install_dir}" >> "${GITHUB_PATH}"
+          version_output="$("${install_dir}/osv-scanner" --version)"
+          echo "${version_output}"
+          echo "${version_output}" | grep -F "${OSV_VERSION#v}" >/dev/null
 
       - name: Run OSV-Scanner (gate)
         run: osv-scanner scan source --lockfile=requirements.lock.txt
