@@ -5,9 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+# One self-hosted runner serializes jobs: drop superseded PR runs instead of
+# queueing them. Grouped per workflow and ref; main pushes are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, pve-ci]
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -16,10 +22,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      # The runner is persistent, so install into a fresh per-job venv instead
+      # of mutating the shared tool-cache Python.
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          venv_dir="$(mktemp -d "${RUNNER_TEMP}/venv.XXXXXX")"
+          python -m venv "${venv_dir}"
+          echo "VIRTUAL_ENV=${venv_dir}" >> "${GITHUB_ENV}"
+          echo "${venv_dir}/bin" >> "${GITHUB_PATH}"
+          "${venv_dir}/bin/python" -m pip install --upgrade pip
+          "${venv_dir}/bin/python" -m pip install -e ".[dev]"
       - name: Run tests
         run: pytest -q
       - name: Smoke-test CLI
