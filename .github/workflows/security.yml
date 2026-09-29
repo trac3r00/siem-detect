@@ -19,8 +19,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   OSV_VERSION: v2.4.0
+  # From osv-scanner_SHA256SUMS of the OSV_VERSION release; update together.
+  OSV_SHA256: 15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0
 
 jobs:
   osv-scan:
@@ -34,11 +40,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Fresh per-job venv: the persistent runner's global Python may hold
+      # stale packages that would otherwise leak into the frozen lockfile.
       - name: Freeze resolved dependencies to a lockfile
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip freeze > requirements.lock.txt
+          venv_dir="$(mktemp -d "${RUNNER_TEMP}/venv.XXXXXX")"
+          python -m venv "${venv_dir}"
+          "${venv_dir}/bin/python" -m pip install --upgrade pip
+          "${venv_dir}/bin/python" -m pip install -e ".[dev]"
+          "${venv_dir}/bin/python" -m pip freeze > requirements.lock.txt
           echo "----- resolved dependency lock -----"
           cat requirements.lock.txt
 
@@ -46,11 +56,12 @@ jobs:
         run: |
           install_dir="$(mktemp -d "${RUNNER_TEMP}/osv-scanner.XXXXXX")"
           curl -fsSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" -o "${install_dir}/osv-scanner"
+          echo "${OSV_SHA256}  ${install_dir}/osv-scanner" | sha256sum -c -
           chmod +x "${install_dir}/osv-scanner"
-          echo "${install_dir}" >> "${GITHUB_PATH}"
           version_output="$("${install_dir}/osv-scanner" --version)"
           echo "${version_output}"
-          echo "${version_output}" | grep -F "${OSV_VERSION#v}" >/dev/null
+          echo "${version_output}" | grep -Fx "osv-scanner version: ${OSV_VERSION#v}" >/dev/null
+          echo "${install_dir}" >> "${GITHUB_PATH}"
 
       - name: Run OSV-Scanner (gate)
         run: osv-scanner scan source --lockfile=requirements.lock.txt
